@@ -1,4 +1,12 @@
-'''python
+'''
+-----------------------------------------
+modelLoader for BWater pipeline 
+Gets model published to import 
+in current scene with no namespace.
+
+Autor: AlbertoGZ
+Email: albertogzonline@gmail.com
+-----------------------------------------
 '''
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -19,7 +27,6 @@ import datetime
 # GENERAL VARS
 version = '0.1.0'
 path = '/Users/alberto/Desktop/BWtest/'
-
 
 
 
