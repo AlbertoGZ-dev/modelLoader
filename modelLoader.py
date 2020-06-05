@@ -25,7 +25,7 @@ import datetime
 
 
 # GENERAL VARS
-version = '0.1.0'
+version = '0.1.2'
 path = '/Users/alberto/Desktop/BWtest/'
 
 
@@ -50,17 +50,21 @@ class modelLoader(QtWidgets.QMainWindow):
         # Adding a Horizontal layout to divide the UI in two columns
         columns = QtWidgets.QHBoxLayout(mainLayout)
 
-        # Creating 2 vertical layout for the sanity checks and one for the report
+        # Creating 2 vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
-        #self.col2 = QtWidgets.QVBoxLayout()
+        self.col2 = QtWidgets.QVBoxLayout()
 
         # Set columns for each layout using stretch policy to psudo fixed width for the 'checks' layout
         columns.addLayout(self.col1, 1)
-        #columns.addLayout(self.col2, 2)
+        columns.addLayout(self.col2, 2)
 
         # Adding UI ELEMENTS IN col1
         layout1 = QtWidgets.QVBoxLayout()
         self.col1.addLayout(layout1)
+
+        layout2 = QtWidgets.QVBoxLayout()
+        self.col2.addLayout(layout2)
+
 
         # Combobox selector for asset type
         self.assetTypeSelector = QtWidgets.QComboBox(self)
@@ -92,7 +96,20 @@ class modelLoader(QtWidgets.QMainWindow):
 
         # Button for import
         self.importBtn = QtWidgets.QPushButton('Import')
+        self.importBtn.setEnabled(False)
         self.importBtn.clicked.connect(self.importScene)
+
+        # List of objects
+        self.objectsList = QtWidgets.QListWidget(self)
+        self.objectsList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+        self.objectsList.setMinimumWidth(200)
+        self.objectsList.itemClicked.connect(self.objectsSelection)
+
+        # Button for preload
+        self.preloadBtn = QtWidgets.QPushButton('List objects')
+        self.preloadBtn.setEnabled(False)
+        self.preloadBtn.clicked.connect(self.preloadModel)
 
         # Add elements to layout
         layout1.addWidget(self.assetTypeSelector)
@@ -103,6 +120,9 @@ class modelLoader(QtWidgets.QMainWindow):
         layout1.addWidget(self.dateLabel)
         layout1.addWidget(self.msgLabel)
         layout1.addWidget(self.importBtn)
+        
+        layout2.addWidget(self.objectsList)
+        layout2.addWidget(self.preloadBtn)
 
     
     def restoreLabels(self):
@@ -113,14 +133,16 @@ class modelLoader(QtWidgets.QMainWindow):
     
     def assetTypeSel(self):
         global directory
-        userdata = self.assetTypeSelector.itemData(self.assetTypeSelector.currentIndex())
-        directory = path + userdata
+        assetType = self.assetTypeSelector.itemData(self.assetTypeSelector.currentIndex())
+        directory = path + assetType
         folders = []
         folders.append(os.listdir(directory))
         
         self.restoreLabels()
         self.msgLabel.clear()
         self.assetList.clear()
+        self.objectsList.clear()
+        self.importBtn.setEnabled(False)
 
         for f in folders:
             self.assetList.addItems(f)
@@ -130,6 +152,10 @@ class modelLoader(QtWidgets.QMainWindow):
     def assetSelection(self, item):
         global sceneFullPath
         global asset
+
+        self.objectsList.clear()
+        if cmds.objExists(grpTemp):
+            self.unloadModel()
 
         asset = format(item.text())
         sceneFullPath = directory + '/' + asset + '/08_MODEL/v01/' + asset + '_model_v01.ma'
@@ -141,8 +167,14 @@ class modelLoader(QtWidgets.QMainWindow):
         self.sceneLabel.setText('Scene: ' + scene)
         self.sizeLabel.setText('Size: ' + str(size/1024) + ' KB')
         self.dateLabel.setText('Date: ' + str(date))
+
+        self.importBtn.setEnabled(True)
+        self.preloadBtn.setEnabled(True)
         return asset
 
+
+
+        
 
     def assetFilter(self):
         textFilter = str(self.assetSearchBox.text()).lower()
@@ -158,19 +190,54 @@ class modelLoader(QtWidgets.QMainWindow):
 
 
     def importScene(self):
-        if self.assetList.currentItem():
+        if self.objectsList.currentItem():
+            mel.eval('MLdeleteUnused;')
+            cmds.select(objs)
+            cmds.group(n=asset, w=True)
+            self.objectsList.clear()
+            self.unloadModel()
+            self.msgLabel.setText('Selected objects from model imported successfully!')
+            self.msgLabel.setStyleSheet('color:lightgreen;')
+
+        elif self.assetList.currentItem():
             mel.eval('MLdeleteUnused;')
             cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=str(asset))
             self.msgLabel.setText('Model imported successfully!')
+            self.msgLabel.setStyleSheet('color:lightgreen;')
+
+        else:    
+            self.msgLabel.setText('No scene selected')
+            self.msgLabel.setStyleSheet('color:orange;')
+
+
+    def objectsSelection(self, item):
+        global objs
+        items = self.objectsList.selectedItems()
+        objs = []
+        for i in list(items):
+            objs.append(str(i.text()))
+
+        
+    def preloadModel(self):
+        global grpTemp
+        grpTemp = '___tmp___'
+        
+        if self.assetList.currentItem():
+            cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=grpTemp)
+            cmds.select(grpTemp+'*')
+            cmds.hide(grpTemp+'*')
+            listObjects = cmds.ls(grpTemp, dag=True, type='mesh', sn=True)
+            self.objectsList.addItems(listObjects)
         else:    
             self.msgLabel.setText('No scene selected')
             self.msgLabel.setStyleSheet('color:orange; text-align:center;')
         
-
- 
-    
+        self.preloadBtn.setEnabled(False)
 
 
+    def unloadModel(self):
+        cmds.delete(grpTemp+'*')
+        
         
 
 
