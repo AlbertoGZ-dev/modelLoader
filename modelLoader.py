@@ -33,7 +33,6 @@ path = '/Users/alberto/Desktop/BWtest/'
 #path = 'W:/PRODUCTIONS/DIDDL/PRE/'
 
 
-
 def getMainWindow():
     main_window_ptr = omui.MQtUtil.mainWindow()
     mainWindow = wrapInstance(long(main_window_ptr), QtWidgets.QWidget)
