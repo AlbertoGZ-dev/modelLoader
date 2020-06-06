@@ -27,7 +27,7 @@ import datetime
 
 # GENERAL VARS
 version = '0.1.1'
-winWidth = 400
+winWidth = 350
 winHeight = 300
 path = '/Users/alberto/Desktop/BWtest/'
 #path = 'W:/PRODUCTIONS/DIDDL/PRE/'
@@ -56,23 +56,23 @@ class modelLoader(QtWidgets.QMainWindow):
         # Creating N vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
         self.col2 = QtWidgets.QVBoxLayout()
-        self.col3 = QtWidgets.QVBoxLayout()
+        #self.col3 = QtWidgets.QVBoxLayout()
 
         # Set columns for each layout using stretch policy
         columns.addLayout(self.col1, 1)
         columns.addLayout(self.col2, 1)
-        columns.addLayout(self.col3, 1)
+        #columns.addLayout(self.col3, 1)
         
         # Adding UI elements
         layout1 = QtWidgets.QVBoxLayout()
         layout2A = QtWidgets.QHBoxLayout()
         layout2B = QtWidgets.QVBoxLayout()
-        layout3 = QtWidgets.QVBoxLayout()
+        #layout3 = QtWidgets.QVBoxLayout()
 
         self.col1.addLayout(layout1)
         self.col2.addLayout(layout2A)
         self.col2.addLayout(layout2B)
-        self.col3.addLayout(layout3)
+        #self.col3.addLayout(layout3)
 
 
         ### ASSET UI ELEMENTS
@@ -123,13 +123,13 @@ class modelLoader(QtWidgets.QMainWindow):
         # List of objects
         self.objectsList = QtWidgets.QListWidget(self)
         self.objectsList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.objectsList.setMinimumWidth(200)
+        self.objectsList.setMinimumWidth(170)
         self.objectsList.itemClicked.connect(self.objectsSelection)
 
         # Button for list objects (preload scene)
         self.preloadBtn = QtWidgets.QPushButton('List objects')
         self.preloadBtn.setEnabled(False)
-        self.preloadBtn.setMinimumWidth(140)
+        self.preloadBtn.setMinimumWidth(110)
         self.preloadBtn.setFixedHeight(18)
         self.preloadBtn.clicked.connect(self.preloadModel)
 
@@ -297,8 +297,7 @@ class modelLoader(QtWidgets.QMainWindow):
             cmds.select(grpTemp+'*')
             cmds.hide(grpTemp+'*')
             mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
-            listObjects = cmds.ls(grpTemp, dag=True, sn=True, s=False, tr=True)
-            listObjects.remove(str(grpTemp))
+            listObjects = cmds.listRelatives(grpTemp, s=False)
             self.objectsList.addItems(listObjects)
         else:    
             self.statusBar.showMessage('No object selected', 4000)
