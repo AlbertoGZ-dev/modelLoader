@@ -19,14 +19,18 @@ import maya.cmds as cmds
 import maya.mel as mel
 import maya.OpenMayaUI as omui
 import maya.api.OpenMaya as om
+import shiboken2
 
 import os
 import datetime
 
 
 # GENERAL VARS
-version = '0.1.2'
+version = '0.1.1'
+winWidth = 400
+winHeight = 300
 path = '/Users/alberto/Desktop/BWtest/'
+#path = 'W:/PRODUCTIONS/DIDDL/PRE/'
 
 
 
@@ -46,26 +50,34 @@ class modelLoader(QtWidgets.QMainWindow):
         self.setWindowTitle('Model Loader' + ' ' + 'v' + version)
         mainLayout = QtWidgets.QWidget(self)
         self.setCentralWidget(mainLayout)
-
-        # Adding a Horizontal layout to divide the UI in two columns
+        
+        # Adding a Horizontal layout to divide the UI in columns
         columns = QtWidgets.QHBoxLayout(mainLayout)
 
-        # Creating 2 vertical layout
+        # Creating N vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
         self.col2 = QtWidgets.QVBoxLayout()
+        self.col3 = QtWidgets.QVBoxLayout()
 
-        # Set columns for each layout using stretch policy to psudo fixed width for the 'checks' layout
+        # Set columns for each layout using stretch policy
         columns.addLayout(self.col1, 1)
-        columns.addLayout(self.col2, 2)
-
-        # Adding UI ELEMENTS IN col1
+        columns.addLayout(self.col2, 1)
+        columns.addLayout(self.col3, 1)
+        
+        # Adding UI elements
         layout1 = QtWidgets.QVBoxLayout()
+        layout2A = QtWidgets.QHBoxLayout()
+        layout2B = QtWidgets.QVBoxLayout()
+        layout3 = QtWidgets.QVBoxLayout()
+
         self.col1.addLayout(layout1)
+        self.col2.addLayout(layout2A)
+        self.col2.addLayout(layout2B)
+        self.col3.addLayout(layout3)
 
-        layout2 = QtWidgets.QVBoxLayout()
-        self.col2.addLayout(layout2)
 
-
+        ### ASSET UI ELEMENTS
+        #
         # Combobox selector for asset type
         self.assetTypeSelector = QtWidgets.QComboBox(self)
         self.assetTypeSelector.setMinimumWidth(250)        
@@ -74,7 +86,7 @@ class modelLoader(QtWidgets.QMainWindow):
         self.assetTypeSelector.addItem('Prop', '3_PR')
         self.assetTypeSelector.activated[str].connect(self.assetTypeSel)
      
-        # Input for filter list of assets
+        # SearchBox input for filter ASSET list
         self.assetSearchBox = QtWidgets.QLineEdit('', self)
         self.assetRegex = QtCore.QRegExp('[0-9A-Za-z_]+')
         self.assetValidator = QtGui.QRegExpValidator(self.assetRegex)
@@ -99,17 +111,56 @@ class modelLoader(QtWidgets.QMainWindow):
         self.importBtn.setEnabled(False)
         self.importBtn.clicked.connect(self.importScene)
 
+
+        #### OBJECT UI ELEMENTS
+        #
+        # SearchBox input for filter OBJECT list
+        self.objectSearchBox = QtWidgets.QLineEdit('', self)
+        self.objectRegex = QtCore.QRegExp('[0-9A-Za-z_]+')
+        self.objectValidator = QtGui.QRegExpValidator(self.objectRegex)
+        self.objectSearchBox.setValidator(self.objectValidator)
+        self.objectSearchBox.textChanged.connect(self.objectFilter)
+
         # List of objects
         self.objectsList = QtWidgets.QListWidget(self)
         self.objectsList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-
         self.objectsList.setMinimumWidth(200)
         self.objectsList.itemClicked.connect(self.objectsSelection)
 
-        # Button for preload
+        # Button for list objects (preload scene)
         self.preloadBtn = QtWidgets.QPushButton('List objects')
         self.preloadBtn.setEnabled(False)
+        self.preloadBtn.setMinimumWidth(140)
+        self.preloadBtn.setFixedHeight(18)
         self.preloadBtn.clicked.connect(self.preloadModel)
+
+        # Button for clear objects list (unload scene)
+        self.clearObjectsListBtn = QtWidgets.QPushButton('Clear')
+        self.clearObjectsListBtn.setEnabled(False)
+        self.clearObjectsListBtn.setFixedWidth(60)
+        self.clearObjectsListBtn.setFixedHeight(18)
+        self.clearObjectsListBtn.clicked.connect(self.unloadModel)
+
+        ### Ghost panel
+        self.ghost = QtWidgets.QLabel('')
+        self.ghost.setFixedWidth(300)
+        self.ghost.setFixedHeight(300)
+        self.ghost.setStyleSheet('background-color:green')
+        
+        '''
+        ### Maya viewport embed to Qt
+        layout3.setObjectName('viewportLayout')
+        cmds.setParent('viewportLayout')
+        paneLayoutName = cmds.paneLayout()
+        modelPanelName = cmds.modelEditor('embeddedModelEditor#', cam='persp', da='smoothShaded', gr=False, hud=False)
+        ptr = omui.MQtUtil.findControl(paneLayoutName)
+        viewport = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
+        '''
+
+        # Add status bar widget
+        self.statusBar = QtWidgets.QStatusBar()
+        self.setStatusBar(self.statusBar)
+        #self.statusBar.setVisible(False)
 
         # Add elements to layout
         layout1.addWidget(self.assetTypeSelector)
@@ -121,40 +172,47 @@ class modelLoader(QtWidgets.QMainWindow):
         layout1.addWidget(self.msgLabel)
         layout1.addWidget(self.importBtn)
         
-        layout2.addWidget(self.objectsList)
-        layout2.addWidget(self.preloadBtn)
+        layout2A.addWidget(self.preloadBtn)
+        layout2A.addWidget(self.clearObjectsListBtn)
+        layout2B.addWidget(self.objectSearchBox)
+        layout2B.addWidget(self.objectsList)
+        
+        #layout3.addWidget(viewport)
+        #viewport.setVisible(False)
+        self.resize(winWidth, winHeight)
 
     
-    def restoreLabels(self):
-        self.sceneLabel.setText('Scene: ')
-        self.sizeLabel.setText('Size: ')
-        self.dateLabel.setText('Date: ')
-      
-    
+
+
+    ### Combobox selector for asset type
     def assetTypeSel(self):
         global directory
+
+        self.restoreLabels()
+        self.assetList.clear()
+        self.objectsList.clear()
+        self.importBtn.setEnabled(False)
+        if cmds.objExists('___tmp___*'):
+            self.unloadModel()
+
         assetType = self.assetTypeSelector.itemData(self.assetTypeSelector.currentIndex())
         directory = path + assetType
         folders = []
         folders.append(os.listdir(directory))
         
-        self.restoreLabels()
-        self.msgLabel.clear()
-        self.assetList.clear()
-        self.objectsList.clear()
-        self.importBtn.setEnabled(False)
-
+        # Load list of folders from select asset type
         for f in folders:
             self.assetList.addItems(f)
         return folders
 
 
+    ### Actions when asset is selected in list
     def assetSelection(self, item):
         global sceneFullPath
         global asset
 
         self.objectsList.clear()
-        if cmds.objExists(grpTemp):
+        if cmds.objExists('___tmp___*'):
             self.unloadModel()
 
         asset = format(item.text())
@@ -172,10 +230,8 @@ class modelLoader(QtWidgets.QMainWindow):
         self.preloadBtn.setEnabled(True)
         return asset
 
-
-
-        
-
+    
+    ### Filter by typing for ASSET list
     def assetFilter(self):
         textFilter = str(self.assetSearchBox.text()).lower()
         if not textFilter:
@@ -187,29 +243,42 @@ class modelLoader(QtWidgets.QMainWindow):
                     self.assetList.setRowHidden(row, False)
                 else:
                     self.assetList.setRowHidden(row, True)
+    
+     ### Filter by typing for OBJECTS list
+    def objectFilter(self):
+        textFilter = str(self.objectSearchBox.text()).lower()
+        if not textFilter:
+            for row in range(self.objectsList.count()):
+                self.objectsList.setRowHidden(row, False)
+        else:
+            for row in range(self.objectsList.count()):
+                if textFilter in str(self.objectsList.item(row).text()).lower():
+                    self.objectsList.setRowHidden(row, False)
+                else:
+                    self.objectsList.setRowHidden(row, True)
 
-
+    
+    ### Actions for import button
     def importScene(self):
+        # Check if any objects is selected; then import them 
         if self.objectsList.currentItem():
             mel.eval('MLdeleteUnused;')
             cmds.select(objs)
             cmds.group(n=asset, w=True)
             self.objectsList.clear()
             self.unloadModel()
-            self.msgLabel.setText('Selected objects from model imported successfully!')
-            self.msgLabel.setStyleSheet('color:lightgreen;')
-
+            self.statusBar.setVisible(True)
+            self.statusBar.showMessage('Selected objects from model imported successfully!', 4000)
+        # If no object select then import all model
         elif self.assetList.currentItem():
             mel.eval('MLdeleteUnused;')
             cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=str(asset))
-            self.msgLabel.setText('Model imported successfully!')
-            self.msgLabel.setStyleSheet('color:lightgreen;')
-
+            self.statusBar.showMessage('Model imported successfully!', 4000)
         else:    
-            self.msgLabel.setText('No scene selected')
-            self.msgLabel.setStyleSheet('color:orange;')
+            self.statusBar.showMessage('No scene selected', 4000)
 
 
+    ### Select objects in objects list
     def objectsSelection(self, item):
         global objs
         items = self.objectsList.selectedItems()
@@ -217,28 +286,52 @@ class modelLoader(QtWidgets.QMainWindow):
         for i in list(items):
             objs.append(str(i.text()))
 
-        
+    
+    ### Actions for list objects button
     def preloadModel(self):
         global grpTemp
         grpTemp = '___tmp___'
         
         if self.assetList.currentItem():
-            cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=grpTemp)
+            mel.eval('MLdeleteUnused;')
+            cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=grpTemp, ifr=True)
             cmds.select(grpTemp+'*')
             cmds.hide(grpTemp+'*')
-            listObjects = cmds.ls(grpTemp, dag=True, type='mesh', sn=True)
+            mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
+            listObjects = cmds.ls(grpTemp, dag=True, sn=True, s=False, tr=True)
+            listObjects.remove(str(grpTemp))
             self.objectsList.addItems(listObjects)
         else:    
-            self.msgLabel.setText('No scene selected')
-            self.msgLabel.setStyleSheet('color:orange; text-align:center;')
+            self.statusBar.showMessage('No object selected', 4000)
         
         self.preloadBtn.setEnabled(False)
+        self.clearObjectsListBtn.setEnabled(True)
+    
 
 
+    def restoreLabels(self):
+        self.sceneLabel.setText('Scene: ')
+        self.sizeLabel.setText('Size: ')
+        self.dateLabel.setText('Date: ')
+      
+    
     def unloadModel(self):
         cmds.delete(grpTemp+'*')
+        mel.eval('MLdeleteUnused;')
+        self.cleanScene()
+        self.objectsList.clear()
+        self.preloadBtn.setEnabled(True)
+        self.clearObjectsListBtn.setEnabled(False)
+
+    
+    def cleanScene(self):
+        cmds.delete('*_hyperShadePrimaryNodeEditorSavedTabsInfo*')
+        cmds.delete('*ConfigurationScriptNode*')
         
-        
+
+    def closeEvent(self, event):
+        self.unloadModel()
+        self.cleanScene()
 
 
 if __name__ == '__main__':
