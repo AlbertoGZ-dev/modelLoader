@@ -2,7 +2,7 @@
 -----------------------------------------
 modelLoader for BWater pipeline 
 Gets model published to import 
-in current scene with no namespace.
+in current scene with no namespaces.
 
 Autor: AlbertoGZ
 Email: albertogzonline@gmail.com
@@ -14,7 +14,6 @@ from shiboken2 import wrapInstance
 from os import stat
 from collections import OrderedDict
 
-
 import maya.cmds as cmds
 import maya.mel as mel
 import maya.OpenMayaUI as omui
@@ -23,14 +22,25 @@ import shiboken2
 
 import os
 import datetime
+import re
 
 
 # GENERAL VARS
-version = '0.1.1'
+version = '0.1.3'
 winWidth = 350
 winHeight = 300
-path = '/Users/alberto/Desktop/BWtest/'
-#path = 'W:/PRODUCTIONS/DIDDL/PRE/'
+red = '#872323'
+green = '#207527'
+
+# BWATER VARS
+#testing path
+path = '/Users/alberto/Desktop/BWtest/W/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
+#production path
+#path = 'W:/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
+taskDir = '08_MODEL'
+versionDir = 'v01'
+mayaExt = '.ma'
+sceneSuffix = '_model_' + versionDir + mayaExt
 
 
 def getMainWindow():
@@ -56,23 +66,23 @@ class modelLoader(QtWidgets.QMainWindow):
         # Creating N vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
         self.col2 = QtWidgets.QVBoxLayout()
-        #self.col3 = QtWidgets.QVBoxLayout()
+        self.col3 = QtWidgets.QVBoxLayout()
 
         # Set columns for each layout using stretch policy
         columns.addLayout(self.col1, 1)
         columns.addLayout(self.col2, 1)
-        #columns.addLayout(self.col3, 1)
+        columns.addLayout(self.col3, 1)
         
         # Adding UI elements
         layout1 = QtWidgets.QVBoxLayout()
         layout2A = QtWidgets.QHBoxLayout()
         layout2B = QtWidgets.QVBoxLayout()
-        #layout3 = QtWidgets.QVBoxLayout()
+        layout3 = QtWidgets.QVBoxLayout()
 
         self.col1.addLayout(layout1)
         self.col2.addLayout(layout2A)
         self.col2.addLayout(layout2B)
-        #self.col3.addLayout(layout3)
+        self.col3.addLayout(layout3)
 
 
         ### ASSET UI ELEMENTS
@@ -110,6 +120,10 @@ class modelLoader(QtWidgets.QMainWindow):
         self.importBtn.setEnabled(False)
         self.importBtn.clicked.connect(self.importScene)
 
+        # Cleaning button
+        self.cleanBtn = QtWidgets.QPushButton('Clean')
+        self.cleanBtn.clicked.connect(self.removePrefix)
+
 
         #### OBJECT UI ELEMENTS
         #
@@ -126,40 +140,42 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectsList.setMinimumWidth(170)
         self.objectsList.itemClicked.connect(self.objectsSelection)
 
-        # Button for list objects (preload scene)
-        self.preloadBtn = QtWidgets.QPushButton('List objects')
-        self.preloadBtn.setEnabled(False)
-        self.preloadBtn.setMinimumWidth(110)
-        self.preloadBtn.setFixedHeight(18)
-        self.preloadBtn.clicked.connect(self.preloadModel)
+        # Button for list objects (preload model scene)
+        self.listObjectsBtn = QtWidgets.QPushButton('List objects')
+        self.listObjectsBtn.setEnabled(False)
+        self.listObjectsBtn.setMinimumWidth(110)
+        self.listObjectsBtn.setFixedHeight(18)
+        self.listObjectsBtn.clicked.connect(self.preloadModel)
 
-        # Button for clear objects list (unload scene)
+        # Button for clear objects list (unload model scene)
         self.clearObjectsListBtn = QtWidgets.QPushButton('Clear')
         self.clearObjectsListBtn.setEnabled(False)
         self.clearObjectsListBtn.setFixedWidth(60)
         self.clearObjectsListBtn.setFixedHeight(18)
         self.clearObjectsListBtn.clicked.connect(self.unloadModel)
 
-        ### Ghost panel
-        self.ghost = QtWidgets.QLabel('')
-        self.ghost.setFixedWidth(300)
-        self.ghost.setFixedHeight(300)
-        self.ghost.setStyleSheet('background-color:green')
-        
         '''
+        ### Test panel
+        viewport = QtWidgets.QLabel('')
+        viewport.setFixedWidth(300)
+        viewport.setFixedHeight(300)
+        viewport.setStyleSheet('background-color:gray')
+        '''
+        
         ### Maya viewport embed to Qt
         layout3.setObjectName('viewportLayout')
         cmds.setParent('viewportLayout')
         paneLayoutName = cmds.paneLayout()
-        modelPanelName = cmds.modelEditor('embeddedModelEditor#', cam='persp', da='smoothShaded', gr=False, hud=False)
+        modelPanelName = cmds.modelEditor('embeddedModelEditor#', cam='persp', da='smoothShaded', gr=True, hud=False)
         ptr = omui.MQtUtil.findControl(paneLayoutName)
-        viewport = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
-        '''
+        viewport = wrapInstance(long(ptr), QtWidgets.QWidget)
+        
 
         # Add status bar widget
         self.statusBar = QtWidgets.QStatusBar()
         self.setStatusBar(self.statusBar)
-        #self.statusBar.setVisible(False)
+        self.statusBar.messageChanged.connect(self.statusChanged)
+
 
         # Add elements to layout
         layout1.addWidget(self.assetTypeSelector)
@@ -170,13 +186,14 @@ class modelLoader(QtWidgets.QMainWindow):
         layout1.addWidget(self.dateLabel)
         layout1.addWidget(self.msgLabel)
         layout1.addWidget(self.importBtn)
+        #layout1.addWidget(self.cleanBtn)
         
-        layout2A.addWidget(self.preloadBtn)
+        layout2A.addWidget(self.listObjectsBtn)
         layout2A.addWidget(self.clearObjectsListBtn)
         layout2B.addWidget(self.objectSearchBox)
         layout2B.addWidget(self.objectsList)
         
-        #layout3.addWidget(viewport)
+        layout3.addWidget(viewport)
         #viewport.setVisible(False)
         self.resize(winWidth, winHeight)
 
@@ -189,10 +206,9 @@ class modelLoader(QtWidgets.QMainWindow):
 
         self.restoreLabels()
         self.assetList.clear()
-        self.objectsList.clear()
+        self.unloadModel()
         self.importBtn.setEnabled(False)
-        if cmds.objExists('___tmp___*'):
-            self.unloadModel()
+        self.listObjectsBtn.setEnabled(False)
 
         assetType = self.assetTypeSelector.itemData(self.assetTypeSelector.currentIndex())
         directory = path + assetType
@@ -210,13 +226,9 @@ class modelLoader(QtWidgets.QMainWindow):
         global sceneFullPath
         global asset
 
-        self.objectsList.clear()
-        if cmds.objExists('___tmp___*'):
-            self.unloadModel()
-
         asset = format(item.text())
-        sceneFullPath = directory + '/' + asset + '/08_MODEL/v01/' + asset + '_model_v01.ma'
-        scene = asset + '_model_v01.ma'
+        sceneFullPath = directory + '/' + asset + '/' + taskDir + '/' + versionDir + '/' + asset + sceneSuffix
+        scene = asset + sceneSuffix
         size = os.stat(sceneFullPath).st_size
         mtime = os.stat(sceneFullPath).st_mtime
         date = datetime.datetime.fromtimestamp(mtime).strftime('%d/%m/%Y %H:%M')
@@ -226,7 +238,10 @@ class modelLoader(QtWidgets.QMainWindow):
         self.dateLabel.setText('Date: ' + str(date))
 
         self.importBtn.setEnabled(True)
-        self.preloadBtn.setEnabled(True)
+        self.listObjectsBtn.setEnabled(True)
+        
+        self.unloadModel()
+
         return asset
 
     
@@ -259,21 +274,31 @@ class modelLoader(QtWidgets.QMainWindow):
     
     ### Actions for import button
     def importScene(self):
-        # Check if any objects is selected; then import them 
+        # Check if any objects is selected; then import them
         if self.objectsList.currentItem():
-            mel.eval('MLdeleteUnused;')
-            cmds.select(objs)
-            cmds.group(n=asset, w=True)
-            self.objectsList.clear()
-            self.unloadModel()
-            self.statusBar.setVisible(True)
-            self.statusBar.showMessage('Selected objects from model imported successfully!', 4000)
+            try:
+                mel.eval('MLdeleteUnused;')
+                cmds.select(objs)
+                cmds.group(n=asset+'sel1', w=True)
+                self.removePrefix()
+                self.cleanScene()
+                self.objectsList.clear()
+                self.unloadModel()
+                self.statusBar.setStyleSheet('background-color:' + green)
+                self.statusBar.showMessage('Selected objects from model imported successfully!', 4000)
+            except:
+                self.statusBar.setStyleSheet('background-color:' + red)
+                self.statusBar.showMessage('Object(s) with same name already in scene', 4000)
         # If no object select then import all model
         elif self.assetList.currentItem():
             mel.eval('MLdeleteUnused;')
-            cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=str(asset))
+            cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=str(asset+'tmp1'))
+            self.removePrefix()
+            self.cleanScene()
+            self.statusBar.setStyleSheet('background-color:' + green)
             self.statusBar.showMessage('Model imported successfully!', 4000)
-        else:    
+        else:
+            self.statusBar.setStyleSheet('background-color:' + red)
             self.statusBar.showMessage('No scene selected', 4000)
 
 
@@ -283,7 +308,8 @@ class modelLoader(QtWidgets.QMainWindow):
         items = self.objectsList.selectedItems()
         objs = []
         for i in list(items):
-            objs.append(str(i.text()))
+            objs.append(i.text())
+        objs.sort()
 
     
     ### Actions for list objects button
@@ -299,37 +325,56 @@ class modelLoader(QtWidgets.QMainWindow):
             mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
             listObjects = cmds.listRelatives(grpTemp, s=False)
             self.objectsList.addItems(listObjects)
-        else:    
+        else:
+            self.statusBar.setStyleSheet('background-color:' + red)
             self.statusBar.showMessage('No object selected', 4000)
         
-        self.preloadBtn.setEnabled(False)
+        self.listObjectsBtn.setEnabled(False)
         self.clearObjectsListBtn.setEnabled(True)
     
-
 
     def restoreLabels(self):
         self.sceneLabel.setText('Scene: ')
         self.sizeLabel.setText('Size: ')
         self.dateLabel.setText('Date: ')
-      
     
+
+    def statusChanged(self, args):
+        if not args:
+            self.statusBar.setStyleSheet('background-color:none')
+      
+
     def unloadModel(self):
-        cmds.delete(grpTemp+'*')
-        mel.eval('MLdeleteUnused;')
-        self.cleanScene()
+        #self.cleanScene()
         self.objectsList.clear()
-        self.preloadBtn.setEnabled(True)
+        self.listObjectsBtn.setEnabled(True)
         self.clearObjectsListBtn.setEnabled(False)
+        if cmds.objExists('___tmp___*'):
+            cmds.delete('___tmp___*')
+        mel.eval('MLdeleteUnused;')
 
     
     def cleanScene(self):
-        cmds.delete('*_hyperShadePrimaryNodeEditorSavedTabsInfo*')
-        cmds.delete('*ConfigurationScriptNode*')
-        
+        node1 = '*_hyperShadePrimaryNodeEditorSavedTabsInfo*'
+        node2 = '*ConfigurationScriptNode*'
+        if cmds.objExists(node1):
+            cmds.delete(node1)
+        if cmds.objExists(node2):
+            cmds.delete(node2)
+
+    
+    # Prevent groupname as prefix of any node
+    def removePrefix(self):
+        groupname = cmds.ls(asset + '_*')
+        for gn in groupname:
+            new = gn.split(str(asset + '_model_v01_'))
+            cmds.rename(gn, new[1])
+
 
     def closeEvent(self, event):
         self.unloadModel()
         self.cleanScene()
+        self.removePrefix()
 
 
 if __name__ == '__main__':
