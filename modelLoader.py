@@ -32,11 +32,10 @@ winHeight = 300
 red = '#872323'
 green = '#207527'
 
-# BWATER VARS
-#testing path
-path = '/Users/alberto/Desktop/BWtest/W/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
-#production path
-#path = 'W:/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
+# BWATER VARS 
+testPath = '/Users/alberto/Desktop/BWtest/W/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
+prodPath = 'W:/01_PRODUCTIONS/01_TVSERIES/03_DIDDL/1_PRE/'
+path = testPath
 taskDir = '08_MODEL'
 versionDir = 'v01'
 mayaExt = '.ma'
@@ -66,34 +65,34 @@ class modelLoader(QtWidgets.QMainWindow):
         # Creating N vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
         self.col2 = QtWidgets.QVBoxLayout()
-        self.col3 = QtWidgets.QVBoxLayout()
+        #self.col3 = QtWidgets.QVBoxLayout()
 
         # Set columns for each layout using stretch policy
         columns.addLayout(self.col1, 1)
         columns.addLayout(self.col2, 1)
-        columns.addLayout(self.col3, 1)
+        #columns.addLayout(self.col3, 1)
         
         # Adding UI elements
         layout1 = QtWidgets.QVBoxLayout()
         layout2A = QtWidgets.QHBoxLayout()
         layout2B = QtWidgets.QVBoxLayout()
-        layout3 = QtWidgets.QVBoxLayout()
+        #layout3 = QtWidgets.QVBoxLayout()
 
         self.col1.addLayout(layout1)
         self.col2.addLayout(layout2A)
         self.col2.addLayout(layout2B)
-        self.col3.addLayout(layout3)
+        #self.col3.addLayout(layout3)
 
 
         ### ASSET UI ELEMENTS
         #
         # Combobox selector for asset type
-        self.assetTypeSelector = QtWidgets.QComboBox(self)
-        self.assetTypeSelector.setMinimumWidth(250)        
-        self.assetTypeSelector.addItem('Character', '1_CH')
-        self.assetTypeSelector.addItem('Background', '2_BG')
-        self.assetTypeSelector.addItem('Prop', '3_PR')
-        self.assetTypeSelector.activated[str].connect(self.assetTypeSel)
+        self.assetComboBox = QtWidgets.QComboBox(self)
+        self.assetComboBox.setMinimumWidth(250)        
+        self.assetComboBox.addItem('Character', '1_CH')
+        self.assetComboBox.addItem('Background', '2_BG')
+        self.assetComboBox.addItem('Prop', '3_PR')
+        self.assetComboBox.activated[str].connect(self.assetTypeSel)
      
         # SearchBox input for filter ASSET list
         self.assetSearchBox = QtWidgets.QLineEdit('', self)
@@ -103,9 +102,9 @@ class modelLoader(QtWidgets.QMainWindow):
         self.assetSearchBox.textChanged.connect(self.assetFilter)
 
         # List of assets
-        self.assetList = QtWidgets.QListWidget(self)
-        self.assetList.setMinimumWidth(250)
-        self.assetList.itemClicked.connect(self.assetSelection)
+        self.assetQList = QtWidgets.QListWidget(self)
+        self.assetQList.setMinimumWidth(250)
+        self.assetQList.itemClicked.connect(self.assetSel)
 
         # Labels for scene info
         self.sceneLabel = QtWidgets.QLabel('Scene: ', self)
@@ -118,7 +117,7 @@ class modelLoader(QtWidgets.QMainWindow):
         # Button for import
         self.importBtn = QtWidgets.QPushButton('Import')
         self.importBtn.setEnabled(False)
-        self.importBtn.clicked.connect(self.importScene)
+        self.importBtn.clicked.connect(self.importAsset)
 
         # Cleaning button
         self.cleanBtn = QtWidgets.QPushButton('Clean')
@@ -135,24 +134,24 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectSearchBox.textChanged.connect(self.objectFilter)
 
         # List of objects
-        self.objectsList = QtWidgets.QListWidget(self)
-        self.objectsList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.objectsList.setMinimumWidth(170)
-        self.objectsList.itemClicked.connect(self.objectsSelection)
+        self.objectQList = QtWidgets.QListWidget(self)
+        self.objectQList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.objectQList.setMinimumWidth(170)
+        self.objectQList.itemClicked.connect(self.objectSel)
 
         # Button for list objects (preload model scene)
-        self.listObjectsBtn = QtWidgets.QPushButton('List objects')
-        self.listObjectsBtn.setEnabled(False)
-        self.listObjectsBtn.setMinimumWidth(110)
-        self.listObjectsBtn.setFixedHeight(18)
-        self.listObjectsBtn.clicked.connect(self.preloadModel)
+        self.objectListBtn = QtWidgets.QPushButton('List objects')
+        self.objectListBtn.setEnabled(False)
+        self.objectListBtn.setMinimumWidth(110)
+        self.objectListBtn.setFixedHeight(18)
+        self.objectListBtn.clicked.connect(self.objectLoad)
 
         # Button for clear objects list (unload model scene)
-        self.clearObjectsListBtn = QtWidgets.QPushButton('Clear')
-        self.clearObjectsListBtn.setEnabled(False)
-        self.clearObjectsListBtn.setFixedWidth(60)
-        self.clearObjectsListBtn.setFixedHeight(18)
-        self.clearObjectsListBtn.clicked.connect(self.unloadModel)
+        self.objectListClearBtn = QtWidgets.QPushButton('Clear')
+        self.objectListClearBtn.setEnabled(False)
+        self.objectListClearBtn.setFixedWidth(60)
+        self.objectListClearBtn.setFixedHeight(18)
+        self.objectListClearBtn.clicked.connect(self.objectUnload)
 
         '''
         ### Test panel
@@ -161,7 +160,7 @@ class modelLoader(QtWidgets.QMainWindow):
         viewport.setFixedHeight(300)
         viewport.setStyleSheet('background-color:gray')
         '''
-        
+        '''
         ### Maya viewport embed to Qt
         layout3.setObjectName('viewportLayout')
         cmds.setParent('viewportLayout')
@@ -169,7 +168,7 @@ class modelLoader(QtWidgets.QMainWindow):
         modelPanelName = cmds.modelEditor('embeddedModelEditor#', cam='persp', da='smoothShaded', gr=True, hud=False)
         ptr = omui.MQtUtil.findControl(paneLayoutName)
         viewport = wrapInstance(long(ptr), QtWidgets.QWidget)
-        
+        '''
 
         # Add status bar widget
         self.statusBar = QtWidgets.QStatusBar()
@@ -178,9 +177,9 @@ class modelLoader(QtWidgets.QMainWindow):
 
 
         # Add elements to layout
-        layout1.addWidget(self.assetTypeSelector)
+        layout1.addWidget(self.assetComboBox)
         layout1.addWidget(self.assetSearchBox)
-        layout1.addWidget(self.assetList)
+        layout1.addWidget(self.assetQList)
         layout1.addWidget(self.sceneLabel)
         layout1.addWidget(self.sizeLabel)
         layout1.addWidget(self.dateLabel)
@@ -188,12 +187,12 @@ class modelLoader(QtWidgets.QMainWindow):
         layout1.addWidget(self.importBtn)
         #layout1.addWidget(self.cleanBtn)
         
-        layout2A.addWidget(self.listObjectsBtn)
-        layout2A.addWidget(self.clearObjectsListBtn)
+        layout2A.addWidget(self.objectListBtn)
+        layout2A.addWidget(self.objectListClearBtn)
         layout2B.addWidget(self.objectSearchBox)
-        layout2B.addWidget(self.objectsList)
+        layout2B.addWidget(self.objectQList)
         
-        layout3.addWidget(viewport)
+        #layout3.addWidget(viewport)
         #viewport.setVisible(False)
         self.resize(winWidth, winHeight)
 
@@ -205,24 +204,25 @@ class modelLoader(QtWidgets.QMainWindow):
         global directory
 
         self.restoreLabels()
-        self.assetList.clear()
-        self.unloadModel()
+        self.assetQList.clear()
+        self.objectUnload()
         self.importBtn.setEnabled(False)
-        self.listObjectsBtn.setEnabled(False)
+        self.objectListBtn.setEnabled(False)
 
-        assetType = self.assetTypeSelector.itemData(self.assetTypeSelector.currentIndex())
+        assetType = self.assetComboBox.itemData(self.assetComboBox.currentIndex())
         directory = path + assetType
-        folders = []
-        folders.append(os.listdir(directory))
+        assetList = []
+        assetList.append(os.listdir(directory))
         
         # Load list of folders from select asset type
-        for f in folders:
-            self.assetList.addItems(f)
-        return folders
+        for asset in assetList:
+            asset.sort()
+            self.assetQList.addItems(asset)
+        return assetList
 
 
     ### Actions when asset is selected in list
-    def assetSelection(self, item):
+    def assetSel(self, item):
         global sceneFullPath
         global asset
 
@@ -238,9 +238,9 @@ class modelLoader(QtWidgets.QMainWindow):
         self.dateLabel.setText('Date: ' + str(date))
 
         self.importBtn.setEnabled(True)
-        self.listObjectsBtn.setEnabled(True)
+        self.objectListBtn.setEnabled(True)
         
-        self.unloadModel()
+        self.objectUnload()
 
         return asset
 
@@ -249,48 +249,48 @@ class modelLoader(QtWidgets.QMainWindow):
     def assetFilter(self):
         textFilter = str(self.assetSearchBox.text()).lower()
         if not textFilter:
-            for row in range(self.assetList.count()):
-                self.assetList.setRowHidden(row, False)
+            for row in range(self.assetQList.count()):
+                self.assetQList.setRowHidden(row, False)
         else:
-            for row in range(self.assetList.count()):
-                if textFilter in str(self.assetList.item(row).text()).lower():
-                    self.assetList.setRowHidden(row, False)
+            for row in range(self.assetQList.count()):
+                if textFilter in str(self.assetQList.item(row).text()).lower():
+                    self.assetQList.setRowHidden(row, False)
                 else:
-                    self.assetList.setRowHidden(row, True)
+                    self.assetQList.setRowHidden(row, True)
     
      ### Filter by typing for OBJECTS list
     def objectFilter(self):
         textFilter = str(self.objectSearchBox.text()).lower()
         if not textFilter:
-            for row in range(self.objectsList.count()):
-                self.objectsList.setRowHidden(row, False)
+            for row in range(self.objectQList.count()):
+                self.objectQList.setRowHidden(row, False)
         else:
-            for row in range(self.objectsList.count()):
-                if textFilter in str(self.objectsList.item(row).text()).lower():
-                    self.objectsList.setRowHidden(row, False)
+            for row in range(self.objectQList.count()):
+                if textFilter in str(self.objectQList.item(row).text()).lower():
+                    self.objectQList.setRowHidden(row, False)
                 else:
-                    self.objectsList.setRowHidden(row, True)
+                    self.objectQList.setRowHidden(row, True)
 
     
     ### Actions for import button
-    def importScene(self):
+    def importAsset(self):
         # Check if any objects is selected; then import them
-        if self.objectsList.currentItem():
+        if self.objectQList.currentItem():
             try:
                 mel.eval('MLdeleteUnused;')
                 cmds.select(objs)
                 cmds.group(n=asset+'sel1', w=True)
                 self.removePrefix()
                 self.cleanScene()
-                self.objectsList.clear()
-                self.unloadModel()
+                self.objectQList.clear()
+                self.objectUnload()
                 self.statusBar.setStyleSheet('background-color:' + green)
                 self.statusBar.showMessage('Selected objects from model imported successfully!', 4000)
             except:
                 self.statusBar.setStyleSheet('background-color:' + red)
                 self.statusBar.showMessage('Object(s) with same name already in scene', 4000)
         # If no object select then import all model
-        elif self.assetList.currentItem():
+        elif self.assetQList.currentItem():
             mel.eval('MLdeleteUnused;')
             cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=str(asset+'tmp1'))
             self.removePrefix()
@@ -303,9 +303,9 @@ class modelLoader(QtWidgets.QMainWindow):
 
 
     ### Select objects in objects list
-    def objectsSelection(self, item):
+    def objectSel(self, item):
         global objs
-        items = self.objectsList.selectedItems()
+        items = self.objectQList.selectedItems()
         objs = []
         for i in list(items):
             objs.append(i.text())
@@ -313,24 +313,25 @@ class modelLoader(QtWidgets.QMainWindow):
 
     
     ### Actions for list objects button
-    def preloadModel(self):
+    def objectLoad(self):
         global grpTemp
         grpTemp = '___tmp___'
         
-        if self.assetList.currentItem():
+        if self.assetQList.currentItem():
             mel.eval('MLdeleteUnused;')
             cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=grpTemp, ifr=True)
             cmds.select(grpTemp+'*')
             cmds.hide(grpTemp+'*')
             mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
-            listObjects = cmds.listRelatives(grpTemp, s=False)
-            self.objectsList.addItems(listObjects)
+            objectList = cmds.listRelatives(grpTemp, s=False)
+            objectList.sort()
+            self.objectQList.addItems(objectList)
         else:
             self.statusBar.setStyleSheet('background-color:' + red)
             self.statusBar.showMessage('No object selected', 4000)
         
-        self.listObjectsBtn.setEnabled(False)
-        self.clearObjectsListBtn.setEnabled(True)
+        self.objectListBtn.setEnabled(False)
+        self.objectListClearBtn.setEnabled(True)
     
 
     def restoreLabels(self):
@@ -344,11 +345,11 @@ class modelLoader(QtWidgets.QMainWindow):
             self.statusBar.setStyleSheet('background-color:none')
       
 
-    def unloadModel(self):
+    def objectUnload(self):
         #self.cleanScene()
-        self.objectsList.clear()
-        self.listObjectsBtn.setEnabled(True)
-        self.clearObjectsListBtn.setEnabled(False)
+        self.objectQList.clear()
+        self.objectListBtn.setEnabled(True)
+        self.objectListClearBtn.setEnabled(False)
         if cmds.objExists('___tmp___*'):
             cmds.delete('___tmp___*')
         mel.eval('MLdeleteUnused;')
@@ -372,7 +373,7 @@ class modelLoader(QtWidgets.QMainWindow):
 
 
     def closeEvent(self, event):
-        self.unloadModel()
+        self.objectUnload()
         self.cleanScene()
         self.removePrefix()
 
