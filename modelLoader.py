@@ -26,7 +26,7 @@ import re
 
 
 # GENERAL VARS
-version = '0.1.3'
+version = '0.1.4'
 winWidth = 350
 winHeight = 300
 red = '#872323'
@@ -153,22 +153,35 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectListClearBtn.setFixedHeight(18)
         self.objectListClearBtn.clicked.connect(self.objectUnload)
 
-        '''
+        
         ### Test panel
+<<<<<<< HEAD
         viewport = QtWidgets.QLabel('')
         viewport.setFixedWidth(300)
         viewport.setFixedHeight(300)
         viewport.setStyleSheet('background-color:gray')
         '''
+=======
+        self.viewport = QtWidgets.QLabel('')
+        self.viewport.setFixedWidth(300)
+        self.viewport.setFixedHeight(300)
+        self.viewport.setStyleSheet('background-color:gray')
+        
+>>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
         '''
         ### Maya viewport embed to Qt
         layout3.setObjectName('viewportLayout')
         cmds.setParent('viewportLayout')
         paneLayoutName = cmds.paneLayout()
-        modelPanelName = cmds.modelEditor('embeddedModelEditor#', cam='persp', da='smoothShaded', gr=True, hud=False)
+        modelPanelName = cmds.modelEditorl('embeddedModelEditor1', cam='persp')
         ptr = omui.MQtUtil.findControl(paneLayoutName)
+<<<<<<< HEAD
         viewport = wrapInstance(long(ptr), QtWidgets.QWidget)
         '''
+=======
+        self.viewport = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
+        '''        
+>>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
 
         # Add status bar widget
         self.statusBar = QtWidgets.QStatusBar()
@@ -192,7 +205,11 @@ class modelLoader(QtWidgets.QMainWindow):
         layout2B.addWidget(self.objectSearchBox)
         layout2B.addWidget(self.objectQList)
         
+<<<<<<< HEAD
         #layout3.addWidget(viewport)
+=======
+        #layout3.addWidget(self.viewport)
+>>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
         #viewport.setVisible(False)
         self.resize(winWidth, winHeight)
 
