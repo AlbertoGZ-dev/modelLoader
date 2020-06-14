@@ -22,12 +22,13 @@ import shiboken2
 
 import os
 import datetime
+import time
 import re
 
 
 # GENERAL VARS
 version = '0.1.4'
-winWidth = 350
+winWidth = 400
 winHeight = 300
 red = '#872323'
 green = '#207527'
@@ -65,23 +66,23 @@ class modelLoader(QtWidgets.QMainWindow):
         # Creating N vertical layout
         self.col1 = QtWidgets.QVBoxLayout()
         self.col2 = QtWidgets.QVBoxLayout()
-        #self.col3 = QtWidgets.QVBoxLayout()
+        self.col3 = QtWidgets.QVBoxLayout()
 
         # Set columns for each layout using stretch policy
-        columns.addLayout(self.col1, 1)
+        columns.addLayout(self.col1, 2)
         columns.addLayout(self.col2, 1)
-        #columns.addLayout(self.col3, 1)
+        columns.addLayout(self.col3, 2)
         
         # Adding UI elements
         layout1 = QtWidgets.QVBoxLayout()
         layout2A = QtWidgets.QHBoxLayout()
         layout2B = QtWidgets.QVBoxLayout()
-        #layout3 = QtWidgets.QVBoxLayout()
+        layout3 = QtWidgets.QVBoxLayout()
 
         self.col1.addLayout(layout1)
         self.col2.addLayout(layout2A)
         self.col2.addLayout(layout2B)
-        #self.col3.addLayout(layout3)
+        self.col3.addLayout(layout3)
 
 
         ### ASSET UI ELEMENTS
@@ -153,40 +154,29 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectListClearBtn.setFixedHeight(18)
         self.objectListClearBtn.clicked.connect(self.objectUnload)
 
-        
-        ### Test panel
-<<<<<<< HEAD
-        viewport = QtWidgets.QLabel('')
-        viewport.setFixedWidth(300)
-        viewport.setFixedHeight(300)
-        viewport.setStyleSheet('background-color:gray')
-        '''
-=======
-        self.viewport = QtWidgets.QLabel('')
-        self.viewport.setFixedWidth(300)
-        self.viewport.setFixedHeight(300)
-        self.viewport.setStyleSheet('background-color:gray')
-        
->>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
-        '''
-        ### Maya viewport embed to Qt
-        layout3.setObjectName('viewportLayout')
-        cmds.setParent('viewportLayout')
-        paneLayoutName = cmds.paneLayout()
-        modelPanelName = cmds.modelEditorl('embeddedModelEditor1', cam='persp')
-        ptr = omui.MQtUtil.findControl(paneLayoutName)
-<<<<<<< HEAD
-        viewport = wrapInstance(long(ptr), QtWidgets.QWidget)
-        '''
-=======
-        self.viewport = shiboken2.wrapInstance(long(ptr), QtWidgets.QWidget)
-        '''        
->>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
+        # Check for open viewer to show object(s)
+        self.objectViewCheckbox = QtWidgets.QCheckBox('Object viewer')
+        self.objectViewCheckbox.setEnabled(False)
+        self.objectViewCheckbox.clicked.connect(self.showViewer)
 
+        
         # Add status bar widget
         self.statusBar = QtWidgets.QStatusBar()
         self.setStatusBar(self.statusBar)
         self.statusBar.messageChanged.connect(self.statusChanged)
+
+
+        ### MAYA embedding modelEditor widget in Pyside layout
+        self.paneLayoutName = cmds.paneLayout()
+        global modelEditorName
+        global viewer
+        global objectViewerCam
+        objectViewerCam = 'objectViewerCam1'
+        modelEditorName = 'modelEditor#'
+        viewer = cmds.modelEditor(modelEditorName, cam="persp", hud=False, grid=False, da='smoothShaded', sel=False)
+        self.ptr = omui.MQtUtil.findControl(self.paneLayoutName)            
+        self.objectViewer = shiboken2.wrapInstance(long(self.ptr), QtWidgets.QWidget)
+        self.objectViewer.setVisible(False)
 
 
         # Add elements to layout
@@ -198,19 +188,15 @@ class modelLoader(QtWidgets.QMainWindow):
         layout1.addWidget(self.dateLabel)
         layout1.addWidget(self.msgLabel)
         layout1.addWidget(self.importBtn)
-        #layout1.addWidget(self.cleanBtn)
         
         layout2A.addWidget(self.objectListBtn)
         layout2A.addWidget(self.objectListClearBtn)
         layout2B.addWidget(self.objectSearchBox)
         layout2B.addWidget(self.objectQList)
+        layout2B.addWidget(self.objectViewCheckbox)
         
-<<<<<<< HEAD
-        #layout3.addWidget(viewport)
-=======
-        #layout3.addWidget(self.viewport)
->>>>>>> 25dff8ce3904ecd37b80cbb19c03af5aa124d9be
-        #viewport.setVisible(False)
+        layout3.addWidget(self.objectViewer)
+        
         self.resize(winWidth, winHeight)
 
     
@@ -319,6 +305,35 @@ class modelLoader(QtWidgets.QMainWindow):
             self.statusBar.showMessage('No scene selected', 4000)
 
 
+    def hideViewer(self):
+        cmds.delete(objectViewerCam)
+        self.objectViewer.setVisible(False)
+        winWidth = 400
+        self.resize(winWidth, winHeight)
+
+
+    def showViewer(self):
+        if self.objectViewCheckbox.isChecked():
+            
+            self.objectViewer.setVisible(True)
+            winWidth = 800
+            self.resize(winWidth, winHeight)
+            cmds.camera(name=objectViewerCam)
+            #cmds.hide(objectViewerCam)
+
+            if self.objectQList.currentItem():
+                cmds.showHidden(grpTemp+'*')
+                cmds.select(objs)
+                cmds.isolateSelect(viewer, s=False)
+                cmds.isolateSelect(viewer, s=True)
+                cmds.viewFit(objectViewerCam)
+                #cmds.refresh()
+        else:
+            self.hideViewer()
+
+
+
+
     ### Select objects in objects list
     def objectSel(self, item):
         global objs
@@ -326,8 +341,17 @@ class modelLoader(QtWidgets.QMainWindow):
         objs = []
         for i in list(items):
             objs.append(i.text())
-        objs.sort()
+        self.statusBar.showMessage(str(objs), 4000)
 
+        cmds.showHidden(grpTemp+'*')
+        cmds.select(objs)
+        cmds.isolateSelect(viewer, s=False)
+        cmds.isolateSelect(viewer, s=True)
+        cmds.viewFit(objectViewerCam)
+        #cmds.refresh()
+
+        
+            
     
     ### Actions for list objects button
     def objectLoad(self):
@@ -339,10 +363,11 @@ class modelLoader(QtWidgets.QMainWindow):
             cmds.file(sceneFullPath, i=True, gr=True, dns=False, gn=grpTemp, ifr=True)
             cmds.select(grpTemp+'*')
             cmds.hide(grpTemp+'*')
-            mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
+            #mel.eval('setAttr ___tmp___.hiddenInOutliner true;AEdagNodeCommonRefreshOutliners();')
             objectList = cmds.listRelatives(grpTemp, s=False)
             objectList.sort()
             self.objectQList.addItems(objectList)
+            self.objectViewCheckbox.setEnabled(True)
         else:
             self.statusBar.setStyleSheet('background-color:' + red)
             self.statusBar.showMessage('No object selected', 4000)
@@ -367,8 +392,19 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectQList.clear()
         self.objectListBtn.setEnabled(True)
         self.objectListClearBtn.setEnabled(False)
+        self.objectViewCheckbox.setEnabled(False)
+        
+        if self.objectViewCheckbox.isChecked():
+            self.hideViewer()
+            self.objectViewCheckbox.setChecked(False)
+
+
         if cmds.objExists('___tmp___*'):
             cmds.delete('___tmp___*')
+
+        if cmds.objExists(objectViewerCam):
+            cmds.delete(objectViewerCam)
+        
         mel.eval('MLdeleteUnused;')
 
     
@@ -392,7 +428,10 @@ class modelLoader(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         self.objectUnload()
         self.cleanScene()
-        self.removePrefix()
+        #self.removePrefix()
+        if cmds.modelEditor(modelEditorName, query=True, exists=True):
+            cmds.deleteUI(modelEditorName)
+
 
 
 if __name__ == '__main__':
