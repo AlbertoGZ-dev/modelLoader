@@ -27,7 +27,7 @@ import re
 
 
 # GENERAL VARS
-version = '0.1.4'
+version = '0.1.5'
 winWidth = 400
 winHeight = 300
 red = '#872323'
@@ -170,10 +170,12 @@ class modelLoader(QtWidgets.QMainWindow):
         self.paneLayoutName = cmds.paneLayout()
         global modelEditorName
         global viewer
-        global objectViewerCam
-        objectViewerCam = 'objectViewerCam1'
+        
+        self.createCam()
+
+        #objectViewerCam = 'objectViewerCam1'
         modelEditorName = 'modelEditor#'
-        viewer = cmds.modelEditor(modelEditorName, cam="persp", hud=False, grid=False, da='smoothShaded', sel=False)
+        viewer = cmds.modelEditor(modelEditorName, cam=objectViewerCam, hud=False, grid=False, da='smoothShaded', sel=False)
         self.ptr = omui.MQtUtil.findControl(self.paneLayoutName)            
         self.objectViewer = shiboken2.wrapInstance(long(self.ptr), QtWidgets.QWidget)
         self.objectViewer.setVisible(False)
@@ -320,10 +322,17 @@ class modelLoader(QtWidgets.QMainWindow):
 
 
     def hideViewer(self):
-        cmds.delete(objectViewerCam)
         self.objectViewer.setVisible(False)
         winWidth = 400
         self.resize(winWidth, winHeight)
+
+
+    def createCam(self):
+            global objectViewerCam
+            objectViewerCam = 'objectViewerCam1'
+            cmds.camera(name=objectViewerCam)
+            cmds.xform(t=(28.000, 21.000, 28.000), ro=(-27.938, 45.0, -0.0) )
+            #cmds.hide(objectViewerCam)
 
 
     def showViewer(self):
@@ -332,8 +341,6 @@ class modelLoader(QtWidgets.QMainWindow):
             self.objectViewer.setVisible(True)
             winWidth = 800
             self.resize(winWidth, winHeight)
-            cmds.camera(name=objectViewerCam)
-            #cmds.hide(objectViewerCam)
 
             if self.objectQList.currentItem():
                 cmds.showHidden(grpTemp+'*')
@@ -402,7 +409,6 @@ class modelLoader(QtWidgets.QMainWindow):
       
 
     def objectUnload(self):
-        #self.cleanScene()
         self.objectQList.clear()
         self.objectListBtn.setEnabled(True)
         self.objectListClearBtn.setEnabled(False)
@@ -412,14 +418,8 @@ class modelLoader(QtWidgets.QMainWindow):
             self.hideViewer()
             self.objectViewCheckbox.setChecked(False)
 
-
         if cmds.objExists('___tmp___*'):
             cmds.delete('___tmp___*')
-
-        if cmds.objExists(objectViewerCam):
-            cmds.delete(objectViewerCam)
-        
-        mel.eval('MLdeleteUnused;')
 
     
     def cleanScene(self):
@@ -429,7 +429,10 @@ class modelLoader(QtWidgets.QMainWindow):
             cmds.delete(node1)
         if cmds.objExists(node2):
             cmds.delete(node2)
-
+        cmds.delete(objectViewerCam)        
+        cmds.deleteUI(modelEditorName+'*')
+        mel.eval('MLdeleteUnused;')
+        
     
     # Prevent groupname as prefix of any node
     def removePrefix(self):
@@ -443,8 +446,6 @@ class modelLoader(QtWidgets.QMainWindow):
         self.objectUnload()
         self.cleanScene()
         #self.removePrefix()
-        if cmds.modelEditor(modelEditorName, query=True, exists=True):
-            cmds.deleteUI(modelEditorName)
 
 
 
