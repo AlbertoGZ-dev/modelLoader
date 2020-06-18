@@ -224,6 +224,16 @@ class modelLoader(QtWidgets.QMainWindow):
         return assetList
 
 
+    ### Human redeable bytes conversion
+    def convert_bytes(self, num):
+        step_unit = 1000.0 #1024 bad the size
+
+        for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+            if num < step_unit:
+                return "%3.1f %s" % (num, x)
+            num /= step_unit
+    
+
     ### Actions when asset is selected in list
     def assetSel(self, item):
         global sceneFullPath
@@ -235,9 +245,11 @@ class modelLoader(QtWidgets.QMainWindow):
         size = os.stat(sceneFullPath).st_size
         mtime = os.stat(sceneFullPath).st_mtime
         date = datetime.datetime.fromtimestamp(mtime).strftime('%d/%m/%Y %H:%M')
-        
+
+        humansize = self.convert_bytes(size)
+
         self.sceneLabel.setText('Scene: ' + scene)
-        self.sizeLabel.setText('Size: ' + str(size/1024) + ' KB')
+        self.sizeLabel.setText('Size: ' + str(humansize))
         self.dateLabel.setText('Date: ' + str(date))
 
         self.importBtn.setEnabled(True)
@@ -247,7 +259,9 @@ class modelLoader(QtWidgets.QMainWindow):
 
         return asset
 
+
     
+
     ### Filter by typing for ASSET list
     def assetFilter(self):
         textFilter = str(self.assetSearchBox.text()).lower()
